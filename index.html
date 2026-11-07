@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulador Huatanay · Mezclas en serie</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0b1220;--card:#111a2e;--line:#22304d;--txt:#e6edf7;--mut:#8aa0c0;--c1:#ef4444;--c2:#f59e0b;--acc:#38bdf8;--ok:#22c55e}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#14213d,var(--bg));color:var(--txt);font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:16px;padding:14px 20px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+header b{letter-spacing:.04em}header span{color:var(--mut)}
+.chip{font:12px ui-monospace,Consolas,monospace;color:var(--ok)}
+main{display:grid;grid-template-columns:290px minmax(0,1fr) 300px;gap:16px;margin:0 16px 16px}
+@media(max-width:1100px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+h2{margin:0 0 10px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--acc)}
+label{display:flex;justify-content:space-between;color:var(--mut);font-size:12px;margin-top:10px}
+label b{color:var(--txt);font-family:ui-monospace,Consolas,monospace}
+input[type=range]{width:100%;accent-color:var(--acc)}
+button,select{background:#0e1830;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer;font:inherit}
+button:hover{border-color:var(--acc)}button.p{background:#0f766e;border-color:#14b8a6}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.t{font:600 20px ui-monospace,Consolas,monospace;color:var(--c2)}
+canvas{display:block;width:100%}
+#tk{height:130px;background:#070d1a;border-radius:10px}
+.kpi{border-left:3px solid var(--acc);background:#0b1426;padding:10px 12px;border-radius:8px;margin-bottom:10px}
+.kpi small{display:block;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.kpi strong{font:600 22px ui-monospace,Consolas,monospace}
+.r{color:var(--c1)}.a{color:var(--c2)}.g{color:var(--ok)}
+.eq{font:12px/1.6 ui-monospace,Consolas,monospace;color:var(--acc);border:1px dashed #1e5a85;border-radius:8px;padding:10px;background:#08162a;word-break:break-word}
+.mut{color:var(--mut);font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+</style>
+</head>
+<body>
+<header><div><b>UNIVERSIDAD CONTINENTAL</b> <span>| Lab. Ecuaciones Diferenciales · Río Huatanay, mezclas en serie</span></div><div class="chip" id="chip">● Motor activo</div></header>
+<main>
+<aside>
+ <div class="card"><h2>Parámetros</h2><div id="ci"></div>
+  <p class="mut" id="kk"></p>
+  <h2 style="margin-top:14px">Escenarios</h2>
+  <div class="row"><button data-p="base">Caso base</button><button data-p="igual">V₁ = V₂</button><button data-p="limpio">y₀ = 0</button><button data-p="doble">Q doble</button></div>
+ </div>
+</aside>
+<section>
+ <div class="card">
+  <div class="top"><span>Gemelo digital: tanques en serie</span><span class="t" id="tt">t = 0.0 min</span></div>
+  <canvas id="tk"></canvas>
+  <input type="range" id="ts" min="0" max="180" step="0.1" value="0" style="margin-top:10px">
+  <div class="row" style="margin-top:8px">
+   <button class="p" id="pl">▶ Iniciar</button><button id="rs">↺ Reiniciar</button>
+   <button data-t="0">t = 0</button><button data-t="30">t = 30</button><button data-t="60">t = 60</button>
+   <select id="sp"><option value="10">10 min/s</option><option value="20" selected>20 min/s</option><option value="40">40 min/s</option></select>
+   <label style="margin:0 0 0 6px"><input type="checkbox" id="rk" checked>&nbsp;Mostrar RK4</label>
+   <button id="png">⬇ Captura PNG</button>
+   <button id="csv">⬇ Exportar CSV</button>
+  </div>
+ </div>
+ <div class="card"><canvas id="ch" height="330"></canvas>
+  <p class="mut">Líneas: solución analítica por Laplace. Marcadores: integración numérica RK4 (h = 0.1 min), calculada sin usar la solución analítica.</p></div>
+</section>
+<aside>
+ <div class="card"><h2>Telemetría</h2>
+  <div class="grid2"><div class="kpi" style="border-color:var(--c1)"><small>x(t) Tramo 1</small><strong class="r" id="vx"></strong></div>
+  <div class="kpi" style="border-color:var(--c2)"><small>y(t) Tramo 2</small><strong class="a" id="vy"></strong></div></div>
+  <div class="kpi"><small>Pico del Tramo 2</small><strong id="pk"></strong></div>
+  <div class="kpi"><small>Error máx. Laplace vs RK4</small><strong id="er"></strong></div>
+  <div class="kpi"><small>Estado aguas abajo (y)</small><strong id="st"></strong><span class="mut">Umbrales didácticos (5 y 15 mg/L), no normativos.</span></div>
+ </div>
+ <div class="card"><h2>Balance de masa</h2>
+  <div class="mut" id="ms" style="line-height:1.9"></div></div>
+ <div class="card"><h2>Ecuaciones activas</h2><div class="eq" id="eq"></div></div>
+</aside>
+</main>
+<script>
+const $=id=>document.getElementById(id), f=(v,d=2)=>v.toFixed(d);
+const cfg=[['q','Caudal Q (m³/s)',1,15,.1,4.5],['v1','Volumen V₁ (m³)',2000,30000,500,9000],['v2','Volumen V₂ (m³)',2000,40000,500,13500],['x0','Concentración inicial x₀ (mg/L)',0,200,1,50],['y0','Concentración inicial y₀ (mg/L)',0,200,1,10],['tm','Tiempo máximo (min)',60,360,10,180]];
+const PR={base:{q:4.5,v1:9000,v2:13500,x0:50,y0:10},igual:{q:4.5,v1:9000,v2:9000,x0:50,y0:0},limpio:{q:4.5,v1:9000,v2:13500,x0:50,y0:0},doble:{q:9,v1:9000,v2:13500,x0:50,y0:10}};
+$('ci').innerHTML=cfg.map(([id,l,a,b,s,v])=>`<label>${l}<b id="o_${id}"></b></label><input type="range" id="${id}" min="${a}" max="${b}" step="${s}" value="${v}">`).join('');
+let P={},T=0,play=false,last=0;
+
+// Variables para exportación CSV
+let dataExportA = [], dataExportB = [], dataExportRX = [], dataExportRY = [];
+
+function an(t){const{k1,k2,x0,y0}=P,x=x0*Math.exp(-k1*t);let y;
+ if(P.deg){const k=k1;y=(y0+k*x0*t)*Math.exp(-k*t)}else y=P.C1*Math.exp(-k1*t)+P.C2*Math.exp(-k2*t);return{x,y}}
+function evac(t){const{k1,k2,x0,y0,Q}=P;let I;
+ if(P.deg){const e=Math.exp(-k1*t);I=y0*(1-e)/k1+x0*(1-e*(1+k1*t))/k1}
+ else I=P.C1*(1-Math.exp(-k1*t))/k1+P.C2*(1-Math.exp(-k2*t))/k2;return Q*I/1000}
+
+function calc(){
+ const g=id=>+$(id).value;cfg.forEach(([id])=>$('o_'+id).textContent=g(id));
+ const Q=g('q')*60,V1=g('v1'),V2=g('v2'),x0=g('x0'),y0=g('y0'),tm=g('tm');
+ P={Q,V1,V2,x0,y0,tm,k1:Q/V1,k2:Q/V2};P.deg=Math.abs(P.k2-P.k1)<1e-6*Math.max(P.k1,P.k2);
+ if(!P.deg){P.C1=P.k2*x0/(P.k2-P.k1);P.C2=y0-P.C1}
+ P.M0=(V1*x0+V2*y0)/1000;
+ const A=[],B=[],RX=[],RY=[],h=.1,n=Math.round(tm/h),fn=(x,y)=>[-P.k1*x,P.k2*(x-y)];
+ for(let t=0;t<=tm;t++){const a=an(t);A.push({x:t,y:a.x});B.push({x:t,y:a.y})}
+ let x=x0,y=y0,E=0;
+ for(let i=0;i<=n;i++){const t=i*h;
+  if(i>0){const a=fn(x,y),b=fn(x+h/2*a[0],y+h/2*a[1]),c=fn(x+h/2*b[0],y+h/2*b[1]),d=fn(x+h*c[0],y+h*c[1]);
+   x+=h/6*(a[0]+2*b[0]+2*c[0]+d[0]);y+=h/6*(a[1]+2*b[1]+2*c[1]+d[1])}
+  const q=an(t);E=Math.max(E,Math.abs(q.x-x),Math.abs(q.y-y));
+  if(i%50===0){RX.push({x:t,y:x});RY.push({x:t,y:y})}}
+ P.E=E;P.pk=null;
+ if(!P.deg){const arg=-(P.k2*P.C2)/(P.k1*P.C1);if(arg>0&&isFinite(arg)){const ts=Math.log(arg)/(P.k2-P.k1);if(ts>0)P.pk={t:ts,y:an(ts).y}}}
+ else if(y0===0&&x0>0)P.pk={t:1/P.k1,y:an(1/P.k1).y};
+ 
+ // Guardar datos para exportación
+ dataExportA = A; dataExportB = B; dataExportRX = RX; dataExportRY = RY;
+ 
+ const ds=ch.data.datasets;ds[0].data=A;ds[1].data=B;ds[2].data=RX;ds[3].data=RY;
+ ch.options.scales.x.max=tm;$('ts').max=tm;if(T>tm)T=tm;
+ $('kk').innerHTML=`k₁ = ${f(P.k1,4)} min⁻¹ · k₂ = ${f(P.k2,4)} min⁻¹<br>τ₁ = ${f(1/P.k1,1)} min · τ₂ = ${f(1/P.k2,1)} min`;
+ const sg=v=>(v<0?'− ':'+ ')+f(Math.abs(v)),k=P.k1;
+ $('eq').innerHTML=`x(t) = ${f(x0)}·e^(−${f(P.k1,4)}t)<br>`+(P.deg?`y(t) = (${f(y0)} + ${f(k,4)}·${f(x0)}·t)·e^(−${f(k,4)}t)`:`y(t) = ${f(P.C1)}·e^(−${f(P.k1,4)}t) ${sg(P.C2)}·e^(−${f(P.k2,4)}t)`)+`<br><br>x′ = −k₁x<br>y′ = k₂(x − y)`;
+ $('er').innerHTML=`<span class="${E<1e-6?'g':'a'}">${E.toExponential(1)}</span> <span class="mut">mg/L</span>`;
+ $('chip').textContent=E<1e-6?'● Validado: Laplace = RK4':'● Revisar: error numérico alto';
+ $('pk').innerHTML=P.pk?`${f(P.pk.y)} mg/L <span class="mut">en ${f(P.pk.t,1)} min</span>`:'<span class="mut">sin pico</span>';
+ draw();
+}
+function draw(){
+ const a=an(T),Ev=evac(T),M=(P.V1*a.x+P.V2*a.y)/1000;
+ $('tt').textContent=`t = ${f(T,1)} min`;$('ts').value=T;
+ $('vx').textContent=f(a.x);$('vy').textContent=f(a.y);
+ const s=$('st');s.textContent=a.y<5?'ACEPTABLE':a.y<15?'PRECAUCIÓN':'CRÍTICO';s.className=a.y<5?'g':a.y<15?'a':'r';
+ $('ms').innerHTML=`Masa inicial M₀: <b>${f(P.M0,1)} kg</b><br>En el río M(t): <b>${f(M,1)} kg</b><br>Evacuada aguas abajo: <b>${f(Ev,1)} kg</b><br>M(t) + evacuada − M₀: <b class="g">${(M+Ev-P.M0).toExponential(1)} kg</b>`;
+ ch.update('none');
+}
+const bg={id:'bg',beforeDraw(c){const x=c.ctx;x.save();x.fillStyle='#0f1a30';x.fillRect(0,0,c.width,c.height);x.restore()}};
+const cur={id:'cur',afterDraw(c){const X=c.scales.x.getPixelForValue(T),x=c.ctx;x.save();x.setLineDash([5,4]);x.strokeStyle='#cbd5e1';x.beginPath();x.moveTo(X,c.chartArea.top);x.lineTo(X,c.chartArea.bottom);x.stroke();x.restore()}};
+const ch=new Chart($('ch'),{type:'line',plugins:[bg,cur],data:{datasets:[
+ {label:'x(t) Tramo 1 · Laplace',data:[],borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.10)',fill:'origin',borderWidth:2.5,pointRadius:0},
+ {label:'y(t) Tramo 2 · Laplace',data:[],borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.10)',fill:'origin',borderWidth:2.5,pointRadius:0},
+ {label:'x RK4',data:[],showLine:false,borderColor:'#fecaca',pointStyle:'crossRot',pointRadius:4,borderWidth:1.5},
+ {label:'y RK4',data:[],showLine:false,borderColor:'#fde68a',pointStyle:'crossRot',pointRadius:4,borderWidth:1.5}]},
+ options:{parsing:false,animation:false,responsive:true,interaction:{mode:'nearest',intersect:false},
+  plugins:{legend:{labels:{color:'#cbd5e1',usePointStyle:true}}},
+  scales:{x:{type:'linear',min:0,title:{display:true,text:'Tiempo t (min)',color:'#8aa0c0'},ticks:{color:'#8aa0c0'},grid:{color:'#1b2845'}},
+   y:{beginAtZero:true,title:{display:true,text:'Concentración (mg/L)',color:'#8aa0c0'},ticks:{color:'#8aa0c0'},grid:{color:'#1b2845'}}}}});
+
+// Gemelo digital: tanques con partículas
+const tk=$('tk'),cx=tk.getContext('2d'),pts=Array.from({length:110},()=>({u:Math.random(),r:Math.random(),y:Math.random(),v:.7+Math.random()*.6}));
+function tanks(dt){
+ const d=devicePixelRatio||1,w=tk.clientWidth,h=tk.clientHeight;if(tk.width!==w*d){tk.width=w*d;tk.height=h*d}
+ cx.setTransform(d,0,0,d,0,0);cx.clearRect(0,0,w,h);
+ const a=an(T),cm=Math.max(P.x0,P.y0,P.pk?P.pk.y:0,1),R=[[.04*w,.42*w,a.x,'239,68,68','Tramo 1'],[.58*w,.96*w,a.y,'245,158,11','Tramo 2']],y0=22,H=h-34;
+ R.forEach(([l,r,c,col,nm],i)=>{cx.fillStyle=`rgba(${col},${.08+.5*Math.min(c/cm,1)})`;cx.strokeStyle=`rgba(${col},.9)`;cx.lineWidth=1.5;cx.beginPath();cx.roundRect(l,y0,r-l,H,8);cx.fill();cx.stroke();
+  cx.fillStyle='#e6edf7';cx.font='12px system-ui';cx.fillText(`${nm} · ${f(c)} mg/L`,l+6,15)});
+ cx.fillStyle='#38bdf8';cx.fillRect(.42*w,y0+H/2-3,.16*w,6);cx.fillText('Q',.495*w,y0+H/2-8);
+ const sp=(P.Q/270)*.06;
+ pts.forEach(p=>{p.u=(p.u+dt*sp*p.v)%1;const i=p.u<.5?0:1,[l,r,c,col]=R[i];if(p.r>Math.min(c/cm,1))return;
+  const fr=(p.u%.5)/.5;cx.fillStyle=`rgba(${col},.85)`;cx.beginPath();cx.arc(l+8+fr*(r-l-16),y0+8+p.y*(H-16),2.6,0,7);cx.fill()})}
+function loop(ts){const dt=Math.min((ts-last)/1000||0,.1);last=ts;
+ if(play){T+=dt*(+$('sp').value);if(T>=P.tm){T=P.tm;play=false;$('pl').textContent='▶ Iniciar'}draw()}
+ tanks(dt);requestAnimationFrame(loop)}
+
+cfg.forEach(([id])=>$(id).addEventListener('input',calc));
+$('ts').addEventListener('input',e=>{T=+e.target.value;play=false;$('pl').textContent='▶ Iniciar';draw()});
+$('pl').onclick=()=>{if(T>=P.tm)T=0;play=!play;$('pl').textContent=play?'⏸ Pausa':'▶ Iniciar'};
+$('rs').onclick=()=>{T=0;play=false;$('pl').textContent='▶ Iniciar';draw()};
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{T=Math.min(+b.dataset.t,P.tm);play=false;$('pl').textContent='▶ Iniciar';draw()});
+document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{const p=PR[b.dataset.p];for(const k in p)$(k).value=p[k];T=0;calc()});
+$('rk').onchange=e=>{ch.data.datasets[2].hidden=ch.data.datasets[3].hidden=!e.target.checked;ch.update('none')};
+$('png').onclick=()=>{const a=document.createElement('a');a.href=ch.toBase64Image();a.download=`captura_t${Math.round(T)}min.png`;a.click()};
+
+// Lógica de exportación CSV
+$('csv').onclick=()=>{
+    // Crear el encabezado del CSV
+    let csvContent = "Tiempo (min),x(t) Analitico (Tramo 1),y(t) Analitico (Tramo 2),x(t) Numerico RK4,y(t) Numerico RK4\n";
+    
+    // Mapear los datos numéricos de RK4 para un cruce fácil por tiempo
+    let rk4DataMapX = {};
+    let rk4DataMapY = {};
+    dataExportRX.forEach(point => { rk4DataMapX[point.x.toFixed(2)] = point.y; });
+    dataExportRY.forEach(point => { rk4DataMapY[point.x.toFixed(2)] = point.y; });
+
+    // Iterar sobre los datos analíticos y añadir los de RK4 donde coincidan (cada 5 min)
+    dataExportA.forEach((point, index) => {
+        let tStr = point.x.toFixed(2);
+        let xAnalitico = point.y.toFixed(4);
+        let yAnalitico = dataExportB[index].y.toFixed(4);
+        let xNumerico = rk4DataMapX[tStr] !== undefined ? rk4DataMapX[tStr].toFixed(4) : "";
+        let yNumerico = rk4DataMapY[tStr] !== undefined ? rk4DataMapY[tStr].toFixed(4) : "";
+        
+        csvContent += `${tStr},${xAnalitico},${yAnalitico},${xNumerico},${yNumerico}\n`;
+    });
+
+    // Crear y descargar el archivo
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `huatanay_simulacion_datos.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+calc();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
